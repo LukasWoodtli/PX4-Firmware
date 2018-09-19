@@ -33,15 +33,12 @@
 
 option(SANITIZE_ADDRESS "Enable AddressSanitizer" Off)
 option(SANITIZE_MEMORY "Enable MemorySanitizer" Off)
-option(SANITIZE_THREAD "Enable ThreadSanitizer" Off)
 option(SANITIZE_UNDEFINED "Enable UndefinedBehaviorSanitizer" Off)
 
 if(DEFINED ENV{PX4_ASAN})
 	set(SANITIZE_ADDRESS ON)
 elseif(DEFINED ENV{PX4_MSAN})
 	set(SANITIZE_MEMORY ON)
-elseif(DEFINED ENV{PX4_TSAN})
-	set(SANITIZE_THREAD ON)
 elseif(DEFINED ENV{PX4_UBSAN})
 	set(SANITIZE_UNDEFINED ON)
 endif()
@@ -56,42 +53,39 @@ if (SANITIZE_ADDRESS)
                 -g3
                 -fno-omit-frame-pointer
                 -fsanitize=address
-		#-fsanitize-address-use-after-scope
-		-fno-optimize-sibling-calls
+                #-fsanitize-address-use-after-scope
+                -fno-optimize-sibling-calls
         )
+
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address" CACHE INTERNAL "" FORCE)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address" CACHE INTERNAL "" FORCE)
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address" CACHE INTERNAL "" FORCE)
 
-	function(sanitizer_fail_test_on_error test_name)
-            set_tests_properties(${test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "ERROR: AddressSanitizer")
-            set_tests_properties(${test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "ERROR: LeakSanitizer")
+        function(sanitizer_fail_test_on_error test_name)
+                set_tests_properties(${test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "ERROR: AddressSanitizer")
+                set_tests_properties(${test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "ERROR: LeakSanitizer")
         endfunction(sanitizer_fail_test_on_error)
 
 elseif(SANITIZE_MEMORY)
-        message(STATUS "MemorySanitizer enabled")
+        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+                message(WARNING "MemorySanitizer might not be available with gcc")
+        else()
+                message(STATUS "MemorySanitizer enabled")
+        endif()
 
         add_compile_options(
                 -g3
                 -fsanitize=memory
+		-fno-omit-frame-pointer
+                -fno-optimize-sibling-calls
+                -fsanitize-memory-track-origins
         )
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=memory" CACHE INTERNAL "" FORCE)
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=memory" CACHE INTERNAL "" FORCE)
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=memory" CACHE INTERNAL "" FORCE)
 
         function(sanitizer_fail_test_on_error test_name)
-            # TODO add right check here
-        endfunction(sanitizer_fail_test_on_error)
-
-elseif(SANITIZE_THREAD)
-        message(STATUS "ThreadSanitizer enabled")
-
-        add_compile_options(
-                -g3
-                -fsanitize=thread
-        )
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread" CACHE INTERNAL "" FORCE)
-
-        function(sanitizer_fail_test_on_error test_name)
-            # TODO add right check here
+                set_tests_properties(${test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "WARNING: MemorySanitizer")
         endfunction(sanitizer_fail_test_on_error)
 
 elseif(SANITIZE_UNDEFINED)
@@ -99,37 +93,31 @@ elseif(SANITIZE_UNDEFINED)
 
         add_compile_options(
                 -g3
-                #-fsanitize=alignment
+                -fsanitize=alignment
                 -fsanitize=bool
-		#-fsanitize=builtin
                 -fsanitize=bounds
                 -fsanitize=enum
                 -fsanitize=float-cast-overflow
                 -fsanitize=float-divide-by-zero
-                #-fsanitize=function
                 -fsanitize=integer-divide-by-zero
                 -fsanitize=nonnull-attribute
                 -fsanitize=null
-		#-fsanitize=nullability-arg
-		#-fsanitize=nullability-assign
-		#-fsanitize=nullability-return
                 -fsanitize=object-size
-		#-fsanitize=pointer-overflow
                 -fsanitize=return
                 -fsanitize=returns-nonnull-attribute
                 -fsanitize=shift
                 -fsanitize=signed-integer-overflow
                 -fsanitize=unreachable
-                #-fsanitize=unsigned-integer-overflow
                 -fsanitize=vla-bound
-                -fsanitize=vptr
-
-		-fno-sanitize-recover=bounds,null
+                -fno-sanitize-recover=bounds,null
         )
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined" CACHE INTERNAL "" FORCE)
+
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined" CACHE INTERNAL "" FORCE)
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=undefined" CACHE INTERNAL "" FORCE)
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=undefined" CACHE INTERNAL "" FORCE)
 
         function(sanitizer_fail_test_on_error test_name)
-            # TODO add right check here
+            set_tests_properties(${test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "runtime error:")
         endfunction(sanitizer_fail_test_on_error)
 else()
 

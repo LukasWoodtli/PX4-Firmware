@@ -6,8 +6,8 @@ pipeline {
   parameters {
     choice(
       name: 'PX4_CMAKE_BUILD_TYPE',
-      choices: ['RelWithDebInfo', 'Coverage', 'AddressSanitizer'],
-      description: "CMake build type"
+      choices: ['RelWithDebInfo', 'Coverage', 'AddressSanitizer', 'UndefinedBehaviourSanitizer'],
+      description: "Build type"
       )
   }
 
@@ -23,6 +23,8 @@ pipeline {
             env.PX4_ASAN=1
             env.ASAN_OPTIONS="detect_stack_use_after_return=1:check_initialization_order=1"
           }
+          else if(env.PX4_CMAKE_BUILD_TYPE == 'UndefinedBehaviourSanitizer') {
+            env.PX4_UBSAN=1
         }
       }
     }
